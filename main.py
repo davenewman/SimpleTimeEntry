@@ -1,6 +1,3 @@
-#TODO: Check if db exists, if not create it
-    #TODO: Create table TimeEntries
-    #TODO: Create table Tasks
 #TODO: Read the TimeEntries table and display recent entries
     # make sure to handle the case in which there are no entries to the table
     # can the entries be editable?
@@ -8,37 +5,65 @@
 #TODO: Include clock out of current task button and display current task
 #TODO: Config file?
     # DB name
-
-
-
+    
 import PySimpleGUI as sg
 import sqlite3
 import config
 import utils
 import os
 
-##sg.theme('Dark Blue 3')
-##
-##layout = [  [sg.Text('Filename')],
-##            [sg.Input(), sg.FileBrowse()], 
-##            [sg.OK(), sg.Cancel()]] 
-##
-##window = sg.Window('Get filename example', layout)
-##
-##event, values = window.Read()
-##window.close()
-
-##print(f"event = {event}\nvalues = {values}")
-
-
 class DB:
 
-    def __init__(self, db_path=config.db_info["filename"]):
-        if not os.path.exists(db_path):
+    def __init__(self, db_path=config.db_info['filename']):
+        
+        if  os.path.exists(db_path):
+            self.db_path = db_path
+
+        else:
             event, values = utils.find_file()
-            
-            print(f"event = {event}\nvalues = {values}")
-            print(type(event))
+            if event.lower() == 'ok' and values[0].endswith('db'):
+                self.db_path = values[0]
+            elif event.lower() == 'create new database':
+                self.db_path = db_path
+                self.create_db()
+            else:
+                utils.db_error_popup()
+                exit()
+        self.open()
+
+    def open(self):
+
+        try:
+            self.conn = sqlite3.connect(self.db_path)
+            self.cursor = self.conn.cursor()
+
+        except sqlite3.Error as e:
+            print("Error")
+
+    def create_db(self):
+
+        self.open()
+
+        try:
+            self.cursor.execute('''CREATE TABLE TimeEntries (
+                                    id integer PRIMARY KEY,
+                                    task_id integer,
+                                    date text NOT NULL,
+                                    start_time text NOT NULL,
+                                    end_time text NOT NULL,
+                                    elapsed_time text NOT NULL,
+                                    FOREIGN KEY (task_ID) REFERENCES Tasks (id))''')
+        except sqlite3.Error as e:
+            print(e)
+
+        try:
+            self.cursor.execute('''CREATE TABLE Tasks (
+                                    id integer PRIMARY KEY,
+                                    task_title text NOT NULL,
+                                    task_description text NOT NULL)''')
+        except sqlite3.Error as e:
+            print(e)
+        
 
 
 a = DB()
