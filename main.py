@@ -6,7 +6,7 @@
 #TODO: Config file?
     # DB name
     
-import PySimpleGUI as sg
+#import PySimpleGUI as sg
 import sqlite3
 import config
 import utils
@@ -65,7 +65,9 @@ class DB:
             print(e)
         
 
+if __name__ == "__main__":
 
-a = DB()
+    a = DB()
+    
 
         
