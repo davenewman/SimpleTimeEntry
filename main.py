@@ -1,3 +1,5 @@
+#TODO: Upon creation of database, insert tasks listed in config file into tasks table
+
 #TODO: Read the TimeEntries table and display recent entries
     # make sure to handle the case in which there are no entries to the table
     # can the entries be editable?
@@ -15,6 +17,9 @@ import os
 class DB:
 
     def __init__(self, db_path=config.db_info['filename']):
+
+        self.conn = None
+        self.cursor = None
         
         if  os.path.exists(db_path):
             self.db_path = db_path
@@ -63,7 +68,16 @@ class DB:
                                     task_description text NOT NULL)''')
         except sqlite3.Error as e:
             print(e)
+
+        try:
+            self.cursor.executemany('''INSERT INTO Tasks (task_title, task_description) VALUES (?, ?)''', config.db_info['tasks'])
+
+        except sqlite3.Error as e:
+            print(e)
+
         
+        self.conn.commit()
+        self.conn.close()
 
 if __name__ == "__main__":
 
