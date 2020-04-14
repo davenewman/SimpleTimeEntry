@@ -1,18 +1,18 @@
-#TODO: Upon creation of database, insert tasks listed in config file into tasks table
 
-#TODO: Read the TimeEntries table and display recent entries
-    # make sure to handle the case in which there are no entries to the table
-    # can the entries be editable?
-#TODO: Include fields for clocking in to a new task
-#TODO: Include clock out of current task button and display current task
-#TODO: Config file?
-    # DB name
-    
-#import PySimpleGUI as sg
+# TODO: Read the TimeEntries table and display recent entries
+# make sure to handle the case in which there are no entries to the table
+# can the entries be editable?
+# TODO: Include fields for clocking in to a new task
+# TODO: Include clock out of current task button and display current task
+# TODO: Config file?
+# DB name
+
+# import PySimpleGUI as sg
 import sqlite3
 import config
 import utils
 import os
+
 
 class DB:
 
@@ -20,8 +20,8 @@ class DB:
 
         self.conn = None
         self.cursor = None
-        
-        if  os.path.exists(db_path):
+
+        if os.path.exists(db_path):
             self.db_path = db_path
 
         else:
@@ -45,6 +45,23 @@ class DB:
         except sqlite3.Error as e:
             print("Error")
 
+    def close(self):
+
+        self.conn.commit()
+        self.conn.close()
+
+    def read_task_titles(self):
+
+        self.cursor.execute('''SELECT task_title from Tasks''')
+        return self.cursor.fetchall()
+
+    def _t_insert_time_entries(self, entries):
+
+        self.cursor.executemany('''INSERT INTO TimeEntries (task_id, start_time, end_time, elapsed_time, long_text) 
+                                    VALUES (?, ?, ?, ?, ?)''', entries)
+
+        self.close()
+
     def create_db(self):
 
         self.open()
@@ -52,14 +69,15 @@ class DB:
         try:
             self.cursor.execute('''CREATE TABLE TimeEntries (
                                     id integer PRIMARY KEY,
-                                    task_id integer,
-                                    date text NOT NULL,
-                                    start_time text NOT NULL,
-                                    end_time text NOT NULL,
-                                    elapsed_time text NOT NULL,
+                                    task_id integer NOT NULL,
+                                    start_time text,
+                                    end_time text,
+                                    elapsed_time real NOT NULL,
+                                    long_text text,
                                     FOREIGN KEY (task_ID) REFERENCES Tasks (id))''')
         except sqlite3.Error as e:
             print(e)
+            self.close()
 
         try:
             self.cursor.execute('''CREATE TABLE Tasks (
@@ -68,20 +86,37 @@ class DB:
                                     task_description text NOT NULL)''')
         except sqlite3.Error as e:
             print(e)
+            self.close()
 
         try:
-            self.cursor.executemany('''INSERT INTO Tasks (task_title, task_description) VALUES (?, ?)''', config.db_info['tasks'])
+            self.cursor.executemany('''INSERT INTO Tasks (task_title, task_description) VALUES (?, ?)''',
+                                    config.db_info['tasks'])
 
         except sqlite3.Error as e:
             print(e)
+            self.close()
 
-        
-        self.conn.commit()
-        self.conn.close()
+        self.close()
+
 
 if __name__ == "__main__":
 
-    a = DB()
-    
+    import random
+    import datetime
 
-        
+    def put_entry_in_table():
+        db_obj = DB()
+        task_ids = [1, 2, 3, 4, 5]
+        now = datetime.datetime.now()
+        later = datetime.datetime.now() + datetime.timedelta(hours=10*random.random())
+        words = ['lorem','ipsum','words','dolor','sit','amet']
+        mydata = [(random.choice(task_ids), now.strftime('%d-%m-%Y %H:%M:%S'),
+                   later.strftime('%d-%m-%Y %H:%M:%S'), (later - now).seconds / 3600 ,random.choice(words))]
+        db_obj._t_insert_time_entries(mydata)
+
+
+    for num in range(100):
+        put_entry_in_table()
+
+
+
