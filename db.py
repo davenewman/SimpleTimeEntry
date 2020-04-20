@@ -50,13 +50,19 @@ class DB:
     def read_task_titles(self):
 
         self.curs.execute('''SELECT task_title from Tasks''')
-        return self.curs.fetchall()
+        return [item[0] for item in self.curs.fetchall()]
 
+    def read_task_descriptions(self):
+
+        self.curs.execute('''SELECT task_description from Tasks''')
+        return [item[0] for item in self.curs.fetchall()]
 
     def insert_time_entries(self, entries):
 
         self.curs.executemany('''INSERT INTO TimeEntries (task_id, start_time, end_time, elapsed_time, long_text) 
                                     VALUES (?, ?, ?, ?, ?)''', entries)
+        self.conn.commit()
+        print("DB updated")
 
     def _create_db(self):
 
@@ -71,6 +77,7 @@ class DB:
                                     elapsed_time real NOT NULL,
                                     long_text text,
                                     FOREIGN KEY (task_ID) REFERENCES Tasks (id))''')
+            print("Made it to executing timeentries table")
         except sqlite3.Error as e:
             print(e)
             self.close()
@@ -80,25 +87,31 @@ class DB:
                                     id integer PRIMARY KEY,
                                     task_title text NOT NULL,
                                     task_description text NOT NULL)''')
+            print("Made it to executing tasks table")
         except sqlite3.Error as e:
             print(e)
             self.close()
 
         try:
             self.curs.executemany('''INSERT INTO Tasks (task_title, task_description) VALUES (?, ?)''',
-                                    config.db_info['tasks'])
+                                  config.db_info['tasks'])
+            print("inserted items into tasks")
 
         except sqlite3.Error as e:
             print(e)
             self.close()
+
+        self.conn.commit()
 
 
 if __name__ == "__main__":
     import random
     import datetime
 
+
     def put_entry_in_table():
         db_obj = DB()
+        db_obj.open()
         task_ids = [1, 2, 3, 4, 5]
         now = datetime.datetime.now()
         later = datetime.datetime.now() + datetime.timedelta(hours=10 * random.random())
@@ -106,6 +119,8 @@ if __name__ == "__main__":
         mydata = [(random.choice(task_ids), now.strftime('%d-%m-%Y %H:%M:%S'),
                    later.strftime('%d-%m-%Y %H:%M:%S'), (later - now).seconds / 3600, random.choice(words))]
         db_obj.insert_time_entries(mydata)
+        db_obj.close()
+
 
     for num in range(100):
         put_entry_in_table()
