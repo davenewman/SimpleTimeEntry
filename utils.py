@@ -45,8 +45,8 @@ def already_clocked_out_popup():
 def get_long_text(default_long_text):
     sg.theme('Dark Blue')
 
-    layout = [[sg.Text('There is no long text associated with the current time entry.')],
-              [sg.InputText(default_text=default_long_text)],
+    layout = [[sg.Text('Enter long text below.')],
+              [sg.Multiline(default_text=default_long_text)],
               [sg.OK()]]
 
     window = sg.Window('Long text', layout)
@@ -54,7 +54,7 @@ def get_long_text(default_long_text):
     event, values = window.read(close=True)
 
     if event is None:
-        return ''
+        return default_long_text
 
     return values[0]
 
@@ -69,11 +69,6 @@ def format_seconds(time_in_seconds):
 
 
 if __name__ == "__main__":
-    # event, values = find_file()
-    # print(f"event = {event}")
-    # print(f"values = {values}")
-    #
-    # db_error_popup()
 
-    a = get_long_text()
+    a = get_long_text("Default text")
     print(a)

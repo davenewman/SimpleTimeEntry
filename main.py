@@ -18,6 +18,8 @@ class MainGUI:
         self.t_e = TimeEntries(db)
 
         self.theme = sg.theme('Dark Blue')
+
+        #self.menu_layout = [[sg.Filetab]]
         self.layout = [[sg.Text('Currently clocked in to:'),
                         sg.Text(size=(15, 1), key='-CLOCKED_IN_TO-', background_color='Black', enable_events=True),
                         sg.Text('for'), sg.Text(size=(10, 1), key='-TIME_CLOCKED_IN-')],
@@ -32,15 +34,11 @@ class MainGUI:
 
         while True:
             event, values = self.window.read(timeout=1000)
-            print(f'self.clocked_in = {self.t_e.clocked_in}')
-            print(f'long text = {self.t_e.long_text}')
-            print(f'event = {event}\n\n')
-            self.window['-CLOCKED_IN_TO-'].update(self.t_e.current_task)
             if self.t_e.clocked_in:
                 self.t_e.calculate_time_clocked_in()
                 time_formatted = utils.format_seconds(self.t_e.current_clock_in_time)
                 self.window['-TIME_CLOCKED_IN-'].update(time_formatted)
-                print(f"Clocked in to {self.t_e.current_task} for {self.t_e.current_clock_in_time} seconds")
+                #print(f"Clocked in to {self.t_e.current_task} for {self.t_e.current_clock_in_time} seconds")
 
             else:
                 self.window['-TIME_CLOCKED_IN-'].update('N/A')
@@ -58,15 +56,18 @@ class MainGUI:
                 # This is the first effective time entry
                 self.t_e = TimeEntries(db)
                 self.t_e.clock_in(values['-TASKS-'])
+                self.window['-CLOCKED_IN_TO-'].update(self.t_e.current_task)
 
 
             if event == 'Clock out of current task':
                 # clock out and reset the class!
                 self.t_e.clock_out()
+                
 
                 # reset the class by creating a new instance
                 self.t_e = TimeEntries(db)
-
+                self.reset_window()
+                
             if event == 'Edit long text for current task':
 
                 if self.t_e.clocked_in:
@@ -75,6 +76,13 @@ class MainGUI:
                     utils.already_clocked_out_popup()
 
         self.window.close()
+
+    def reset_window(self):
+        self.window['-TIME_CLOCKED_IN-'].update('00:00:00')
+        self.window['-CLOCKED_IN_TO-'].update('')
+
+
+        
 
 
 class TimeEntries:
