@@ -74,7 +74,7 @@ class DB:
                                     task_id integer NOT NULL,
                                     start_time text,
                                     end_time text,
-                                    elapsed_time real NOT NULL,
+                                    elapsed_time integer NOT NULL,
                                     long_text text,
                                     FOREIGN KEY (task_ID) REFERENCES Tasks (id))''')
             print("Made it to executing timeentries table")

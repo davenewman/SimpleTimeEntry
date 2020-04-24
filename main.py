@@ -1,7 +1,6 @@
-# TODO: Include fields for clocking in to a new task
-# TODO: Include clock out of current task button and display current task
+
 # TODO: Change config file to .ini
-# TODO: Read the TimeEntries table and display recent entries
+# TODO: Read the TimeEntries table and display recent entries (in a new tab?)
 
 import PySimpleGUI as sg
 import db
@@ -17,16 +16,20 @@ class MainGUI:
         # time entries most likely
         self.t_e = TimeEntries(db)
 
-        self.theme = sg.theme('Dark Blue')
+        theme = sg.theme('Dark Blue')
 
         #self.menu_layout = [[sg.Filetab]]
-        self.layout = [[sg.Text('Currently clocked in to:'),
-                        sg.Text(size=(15, 1), key='-CLOCKED_IN_TO-', background_color='Black', enable_events=True),
-                        sg.Text('for'), sg.Text(size=(10, 1), key='-TIME_CLOCKED_IN-')],
-                       [sg.Button('Clock out of current task'), sg.Button('Edit long text for current task')],
-                       [sg.Text('Task'),
-                        sg.Combo(self.t_e.task_list, key='-TASKS-', default_value=self.t_e.task_list[0])],
+
+        top_frame_layout = [[sg.Text('Currently clocked in to:'),
+                            sg.Text(size=(15, 1), key='-CLOCKED_IN_TO-', background_color='Black', enable_events=True),
+                            sg.Text('for'), sg.Text('00:00:00',size=(10, 1), key='-TIME_CLOCKED_IN-')],
+                            [sg.Button('Clock out of current task'), sg.Button('Edit long text for current task')],]
+
+        bottom_frame_layout = [[sg.Text('Task'),
+                                     sg.Combo(self.t_e.task_list, key='-TASKS-', default_value=self.t_e.task_list[0])],
                        [sg.Button('Clock in'), sg.Button('Exit')], ]
+
+        self.layout = [[sg.Frame('',top_frame_layout)],[sg.Frame('',bottom_frame_layout)]]
 
         self.window = sg.Window('This is template pattern 2B', self.layout)
 
@@ -41,7 +44,7 @@ class MainGUI:
                 #print(f"Clocked in to {self.t_e.current_task} for {self.t_e.current_clock_in_time} seconds")
 
             else:
-                self.window['-TIME_CLOCKED_IN-'].update('N/A')
+                self.window['-TIME_CLOCKED_IN-'].update('00:00:00')
 
             if event in (None, 'Exit'):
                 if self.t_e.clocked_in:
@@ -49,6 +52,8 @@ class MainGUI:
                 break
 
             if event == 'Clock in':
+
+                self.reset_window()
 
                 if self.t_e.clocked_in:
                     self.t_e.clock_out()
@@ -61,12 +66,13 @@ class MainGUI:
 
             if event == 'Clock out of current task':
                 # clock out and reset the class!
+                self.reset_window()
                 self.t_e.clock_out()
                 
 
                 # reset the class by creating a new instance
                 self.t_e = TimeEntries(db)
-                self.reset_window()
+
                 
             if event == 'Edit long text for current task':
 
