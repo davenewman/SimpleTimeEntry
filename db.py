@@ -64,6 +64,11 @@ class DB:
         self.conn.commit()
         print("DB updated")
 
+
+    def get_latest_entries(self, num_results):
+
+        self.curs.execute('''SELECT''')
+
     def _create_db(self):
 
         self.open()

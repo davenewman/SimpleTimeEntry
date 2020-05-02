@@ -18,33 +18,42 @@ class MainGUI:
 
         theme = sg.theme('Dark Blue')
 
-        #self.menu_layout = [[sg.Filetab]]
+        # The menu layout will be global to both tabs
 
-        top_frame_layout = [[sg.Text('Currently clocked in to:'),
-                            sg.Text(size=(15, 1), key='-CLOCKED_IN_TO-', background_color='Black', enable_events=True),
-                            sg.Text('for'), sg.Text('00:00:00',size=(10, 1), key='-TIME_CLOCKED_IN-')],
-                            [sg.Button('Clock out of current task'), sg.Button('Edit long text for current task')],]
+        self.menu_layout = [['File', ['Settings','Output to CSV','Exit']],
+                            ['Help', ['Documentation']]]
 
-        bottom_frame_layout = [[sg.Text('Task'),
-                                     sg.Combo(self.t_e.task_list, key='-TASKS-', default_value=self.t_e.task_list[0])],
-                       [sg.Button('Clock in'), sg.Button('Exit')], ]
+        self.top_frame_layout = [[sg.Text('Currently clocked in to:'),
+                                sg.Text(size=(15, 1), key='-CLOCKED_IN_TO-', background_color='black', text_color='white', enable_events=True),
+                                sg.Text('for'), sg.Text('00:00:00',size=(10, 1), key='-TIME_CLOCKED_IN-')],
+                                [sg.Button('Clock out of current task', size=(25,3)), sg.Button('Edit long text for current task', size=(25,3))],]
 
-        self.layout = [[sg.Frame('',top_frame_layout)],[sg.Frame('',bottom_frame_layout)]]
+        self.bottom_frame_layout = [[sg.Text('Task'),
+                                    sg.Combo(self.t_e.task_list, key='-TASKS-', default_value=self.t_e.task_list[0])],
+                                   [sg.Button('Clock in', size=(52,3))], ]
 
-        self.window = sg.Window('This is template pattern 2B', self.layout)
+        self.tab_one_layout = [[sg.Frame('',self.top_frame_layout)],[sg.Frame('',self.bottom_frame_layout)]]
+
+
+        self.tab_two_layout = [[sg.Text('Hi this is in tab two.')]]
+
+        
+
+        self.layout = [[sg.Menu(self.menu_layout), sg.TabGroup([[sg.Tab('Clock In/Clock Out', self.tab_one_layout)], [sg.Tab('Editor', self.tab_two_layout)]])]]
+
+        self.window = sg.Window('Simple Time Entry', self.layout)
 
     def run(self):
 
         while True:
             event, values = self.window.read(timeout=1000)
+            print(event)
+            print(values)
             if self.t_e.clocked_in:
                 self.t_e.calculate_time_clocked_in()
                 time_formatted = utils.format_seconds(self.t_e.current_clock_in_time)
                 self.window['-TIME_CLOCKED_IN-'].update(time_formatted)
                 #print(f"Clocked in to {self.t_e.current_task} for {self.t_e.current_clock_in_time} seconds")
-
-            else:
-                self.window['-TIME_CLOCKED_IN-'].update('00:00:00')
 
             if event in (None, 'Exit'):
                 if self.t_e.clocked_in:
@@ -80,6 +89,8 @@ class MainGUI:
                     self.t_e.long_text = utils.get_long_text(self.t_e.long_text)
                 else:
                     utils.already_clocked_out_popup()
+
+            
 
         self.window.close()
 
