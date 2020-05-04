@@ -66,8 +66,21 @@ class DB:
 
 
     def get_latest_entries(self, num_results):
+        '''
+        We need to get everything from the two tables so that a user can edit
+        the data on the second tab. If possible, we should not make this feature
+        unique to the GUI. We have to join the two tables and account for the fact
+        that the user may have added many different fields to the "projects/tasks"
+        table. Maybe we can return everything from the table using join and then
+        use Python to sanitize the data.
 
-        self.curs.execute('''SELECT''')
+        Ideally we want to display something like this:
+
+        Project/task title | Type (Meeting, absorbed, 9/80 etc.) | Start date/time | Enddate/time | Elapsed time | 
+        '''
+        self.curs.execute('''SELECT * from timeentries inner join tasks on timeentries.task_id = tasks.id''')
+
+
 
     def _create_db(self):
 
