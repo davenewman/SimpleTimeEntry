@@ -1,4 +1,5 @@
 
+
 # TODO: Change config file to .ini
 # TODO: Read the TimeEntries table and display recent entries (in a new tab?)
 

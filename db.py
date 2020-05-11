@@ -4,6 +4,13 @@
 # make sure to handle the case in which there are no entries to the table
 # can the entries be editable?
 
+'''
+Extending the tasks table dynamically should not be too much of a problem. The join statement when displaying the time entries
+is a little bit weird, but any extensions should always come in a known position (after the default ones). The layout will have
+to be dynamic based on the number of fields though.
+'''
+
+
 import sqlite3
 import config
 import utils
@@ -67,9 +74,11 @@ class DB:
 
     def get_latest_entries(self, num_results):
 
-        self.curs.execute('''SELECT''')
+        self.curs.execute('''SELECT * from timeentries inner join tasks''')
 
     def _create_db(self):
+
+        # Adding rows to the main DB 09-05-2020
 
         self.open()
 
@@ -77,9 +86,12 @@ class DB:
             self.curs.execute('''CREATE TABLE TimeEntries (
                                     id integer PRIMARY KEY,
                                     task_id integer NOT NULL,
+                                    task_type_id integer NOT NULL,
+                                    start_date text,
                                     start_time text,
+                                    end_date text,
                                     end_time text,
-                                    elapsed_time integer NOT NULL,
+                                    elapsed_time integer,
                                     long_text text,
                                     FOREIGN KEY (task_ID) REFERENCES Tasks (id))''')
             print("Made it to executing timeentries table")
