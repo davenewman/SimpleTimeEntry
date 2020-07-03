@@ -1,5 +1,3 @@
-
-
 # TODO: Change config file to .ini
 # TODO: Read the TimeEntries table and display recent entries (in a new tab?)
 
@@ -88,6 +86,7 @@ class MainGUI:
 
                 if self.t_e.clocked_in:
                     self.t_e.long_text = utils.get_long_text(self.t_e.long_text)
+                    self.t_e.long_text_updated = True
                 else:
                     utils.already_clocked_out_popup()
 
@@ -115,13 +114,15 @@ class TimeEntries:
         self.database.open()
         self.task_list = self.database.read_task_titles()
         self.task_descriptions = self.database.read_task_descriptions()
+        self.long_text_prepend = self.database.read_task_desc_text()
 
         self.clocked_in = False
         self.start_time = None
         self.end_time = None
         self.current_clock_in_time = None
         self.current_task = None
-        self.long_text = ''
+        self.long_text_updated = False
+        self.long_text = '' # Needs to be populated from the tasks table
 
     def clock_in(self, task):
 
@@ -130,10 +131,13 @@ class TimeEntries:
 
         else:
             self.current_task = task
+            self.long_text = self.long_text_prepend[self.task_list.index(self.current_task)]
             self.clocked_in = True
             self.start_time = datetime.datetime.now()
 
     def clock_out(self):
+
+        """ Clock out of current task. """
 
         if self.clocked_in:
             self.end_time = datetime.datetime.now()
@@ -143,27 +147,34 @@ class TimeEntries:
             utils.already_clocked_out_popup()
 
     def calculate_time_clocked_in(self):
+        """ Populate current_clock_in_time with time elapsed in seconds. """
 
-        self.current_clock_in_time = (datetime.datetime.now() - self.start_time).seconds
+        time_diff = datetime.datetime.now() - self.start_time
+        #self.current_clock_in_time = round(float(time_diff.seconds) / 3600, 3)
+        self.current_clock_in_time = time_diff.seconds
 
+        
     def db_insert(self):
 
-        if not self.long_text:
+        if not self.long_text_updated:
             self.long_text = utils.get_long_text(self.long_text)
 
-        # [task_id, start_time, end_time, elapsed_time, long_text]
-        start = self.start_time.strftime('%d-%m-%Y %H:%M:%S')
-        end = self.end_time.strftime('%d-%m-%Y %H:%M:%S')
+        # [task_id, start_date, start_time, end_date, end_time, elapsed_time, long_text]
 
-        package = [(self.task_list.index(self.current_task) + 1, start, end, self.current_clock_in_time,
-                   self.long_text)]
+        start_date = self.start_time.strftime('%d-%m-%Y')
+        start_time = self.start_time.strftime('%H:%M:%S')
+        end_date = self.end_time.strftime('%d-%m-%Y')
+        end_time = self.end_time.strftime('%H:%M:%S')
+        elapsed_time = round( float(self.current_clock_in_time) / 3600, 3)
+
+        package = [(self.task_list.index(self.current_task) + 1, start_date, start_time,
+                    end_date, end_time, elapsed_time, self.long_text)]
 
         for item in package:
             print(f"{item}: {type(item)}")
 
         self.database.insert_time_entries(package)
         self.database.close()
-
 
 if __name__ == "__main__":
     db = db.DB()

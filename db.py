@@ -56,6 +56,8 @@ class DB:
 
     def read_task_titles(self):
 
+        #It may be a poor decision to fetch ALL of the tasks, descriptions, and long text from the db?
+
         self.curs.execute('''SELECT task_title from Tasks''')
         return [item[0] for item in self.curs.fetchall()]
 
@@ -64,10 +66,21 @@ class DB:
         self.curs.execute('''SELECT task_description from Tasks''')
         return [item[0] for item in self.curs.fetchall()]
 
+    def read_task_desc_text(self):
+
+        self.curs.execute('''SELECT task_desc_text from Tasks''')
+        return [item[0] for item in self.curs.fetchall()]
+
     def insert_time_entries(self, entries):
 
-        self.curs.executemany('''INSERT INTO TimeEntries (task_id, start_time, end_time, elapsed_time, long_text) 
-                                    VALUES (?, ?, ?, ?, ?)''', entries)
+        self.curs.executemany('''INSERT INTO TimeEntries (task_id,
+                                                          start_date,
+                                                          start_time,
+                                                          end_date,
+                                                          end_time,
+                                                          elapsed_time,
+                                                          long_text) 
+                                    VALUES (?, ?, ?, ?, ?, ?, ?)''', entries)
         self.conn.commit()
         print("DB updated")
 
@@ -85,13 +98,9 @@ class DB:
 
         Project/task title | Type (Meeting, absorbed, 9/80 etc.) | Start date/time | Enddate/time | Elapsed time | 
         '''
-        self.curs.execute('''SELECT * from timeentries inner join tasks on timeentries.task_id = tasks.id''')
+        #self.curs.execute('''SELECT * from timeentries inner join tasks on timeentries.task_id = tasks.id''')
+        #self.curs.execute('''SELECT * from timeentries inner join tasks''')
 
-
-<<<<<<< HEAD
-        self.curs.execute('''SELECT * from timeentries inner join tasks''')
-=======
->>>>>>> e05b9f9342ff32a73eb90096b7049b556eea3c06
 
     def _create_db(self):
 
@@ -103,15 +112,13 @@ class DB:
             self.curs.execute('''CREATE TABLE TimeEntries (
                                     id integer PRIMARY KEY,
                                     task_id integer NOT NULL,
-                                    task_type_id integer NOT NULL,
                                     start_date text,
                                     start_time text,
                                     end_date text,
                                     end_time text,
-                                    elapsed_time integer,
+                                    elapsed_time real,
                                     long_text text,
                                     FOREIGN KEY (task_ID) REFERENCES Tasks (id))''')
-            print("Made it to executing timeentries table")
         except sqlite3.Error as e:
             print(e)
             self.close()
@@ -120,16 +127,15 @@ class DB:
             self.curs.execute('''CREATE TABLE Tasks (
                                     id integer PRIMARY KEY,
                                     task_title text NOT NULL,
-                                    task_description text NOT NULL)''')
-            print("Made it to executing tasks table")
+                                    task_description text NOT NULL,
+                                    task_desc_text text)''')
         except sqlite3.Error as e:
             print(e)
             self.close()
 
         try:
-            self.curs.executemany('''INSERT INTO Tasks (task_title, task_description) VALUES (?, ?)''',
+            self.curs.executemany('''INSERT INTO Tasks (task_title, task_description, task_desc_text) VALUES (?, ?, ?)''',
                                   config.db_info['tasks'])
-            print("inserted items into tasks")
 
         except sqlite3.Error as e:
             print(e)
