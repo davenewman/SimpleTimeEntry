@@ -25,11 +25,11 @@ class MainGUI:
         self.top_frame_layout = [[sg.Text('Currently clocked in to:'),
                                 sg.Text(size=(15, 1), key='-CLOCKED_IN_TO-', background_color='black', text_color='white', enable_events=True),
                                 sg.Text('for'), sg.Text('00:00:00',size=(10, 1), key='-TIME_CLOCKED_IN-')],
-                                [sg.Button('Clock out of current task', size=(25,3)), sg.Button('Edit long text for current task', size=(25,3))],]
+                                [sg.Button('Clock out of current task', size=(35,4)), sg.Button('Edit long text for current task', size=(35,4))],]
 
         self.bottom_frame_layout = [[sg.Text('Task'),
                                     sg.InputOptionMenu(self.t_e.task_list, key='-TASKS-', default_value=self.t_e.task_list[0])],
-                                   [sg.Button('Clock in', size=(52,3))], ]
+                                   [sg.Button('Clock in', size=(72,5), pad=(5,30))], ]
 
 
         # The editor layout will have to be populated with all of the contents from the timeentries database...
@@ -50,16 +50,26 @@ class MainGUI:
 ##                           [sg.Text('Date'), sg.Text('Start Time'), sg.Text('End Time'), sg.Text('Elapsed Time'), sg.Text('This is a lot of descriptive text I do not think it will fit on the screen', size=(1,1))],
 ##                           [sg.Text('Date'), sg.Text('Start Time'), sg.Text('End Time'), sg.Text('Elapsed Time'), sg.Text('This is a lot of descriptive text I do not think it will fit on the screen', size=(1,1))]]
 
-        date_col = [[sg.Text('Date')], [sg.Text(datetime.datetime.now().strftime('%d-%m-%Y')) for num in range(10)]]
-        start_time_col = [[sg.Text('Start Time')],   [sg.Text(datetime.datetime.now().strftime('%H:%M:%S')) for num in range(10)]]
-        end_time_col = [[sg.Text('End Time')], [sg.Text(datetime.datetime.now().strftime('%H:%M:%S')) for num in range(10)]]
-        elapsed_time_col = [[sg.Text('Elapsed Time')], [sg.Text('10.005') for num in range(10)]]
-        desc_text_col = [[sg.Text('Descriptive Text')], [sg.Text('This is some very, very, very long long text that you can not possibly all print.') for num in range(10)]]
-##
-        self.editor_top = [[sg.Column(date_col), sg.Column(start_time_col)]]
-        self.editor_bottom = [[sg.Button('Previous Entries', size=(25,1)), sg.Button('Next Entries', size=(25,1))]]
+        now = datetime.datetime.now()
+        now_date = now.strftime('%d-%m-%Y')
+        now_time = now.strftime('%H:%M:%S')
+
+        date_col = [[sg.Text('Date')], [sg.Text(now_date)],[sg.Text(now_date)],[sg.Text(now_date)],[sg.Text(now_date)],[sg.Text(now_date)],[sg.Text(now_date)],[sg.Text(now_date)],[sg.Text(now_date)],[sg.Text(now_date)],[sg.Text(now_date)], ]
         
-        self.tab_one_layout = [[sg.Frame('',self.top_frame_layout)],[sg.Frame('',self.bottom_frame_layout)]]
+        start_time_col = [[sg.Text('Start')], [sg.Text(now_time)],[sg.Text(now_time)],[sg.Text(now_time)],[sg.Text(now_time)],[sg.Text(now_time)],[sg.Text(now_time)],[sg.Text(now_time)],[sg.Text(now_time)],[sg.Text(now_time)],[sg.Text(now_time)],]
+        
+        end_time_col = [[sg.Text('End')], [sg.Text(now_time)], [sg.Text(now_time)], [sg.Text(now_time)], [sg.Text(now_time)], [sg.Text(now_time)], [sg.Text(now_time)], [sg.Text(now_time)], [sg.Text(now_time)], [sg.Text(now_time)], [sg.Text(now_time)]]
+        
+        elapsed_time_col = [[sg.Text('Elapsed')], [sg.Text('10.005')],[sg.Text('10.005')],[sg.Text('10.005')],[sg.Text('10.005')],[sg.Text('10.005')],[sg.Text('10.005')],[sg.Text('10.005')],[sg.Text('10.005')],[sg.Text('10.005')],[sg.Text('10.005')]]
+        
+        desc_text_col = [[sg.Text('Descriptive Text')], [sg.Text('This is some very, very, very long long text that you can not possibly all print.')],[sg.Text('This is some very, very, very long long text that you can not possibly all print.')],[sg.Text('This is some very, very, very long long text that you can not possibly all print.')],[sg.Text('This is some very, very, very long long text that you can not possibly all print.')],[sg.Text('This is some very, very, very long long text that you can not possibly all print.')],[sg.Text('This is some very, very, very long long text that you can not possibly all print.')],[sg.Text('This is some very, very, very long long text that you can not possibly all print.')],[sg.Text('This is some very, very, very long long text that you can not possibly all print.')], ]
+
+        edit_col = [[sg.Button('Edit/View')] for num in range(10)]
+        
+        self.editor_top = [[sg.Column(date_col), sg.Column(start_time_col), sg.Column(end_time_col), sg.Column(elapsed_time_col), sg.Column(desc_text_col, size=(200,200)), sg.Column(edit_col)]]
+        self.editor_bottom = [[sg.Button('Previous Entries', size=(35,1)), sg.Button('Next Entries', size=(35,1))]]
+        
+        self.tab_one_layout = [[sg.Frame('',self.top_frame_layout, pad=(5,10))],[sg.Frame('',self.bottom_frame_layout, pad=(5,10))]]
         self.tab_two_layout = [[sg.Frame('', self.editor_top)], [sg.Frame('', self.editor_bottom)]]
         
         self.layout = [[sg.Menu(self.menu_layout), sg.TabGroup([[sg.Tab('Clock In/Clock Out', self.tab_one_layout)], [sg.Tab('Editor', self.tab_two_layout)]])]]
