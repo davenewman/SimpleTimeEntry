@@ -1,5 +1,7 @@
 import PySimpleGUI as sg
 import os
+import configparser
+
 
 
 def find_file():
@@ -41,22 +43,36 @@ def already_clocked_out_popup():
 
     event, values = window.read(close=True)
 
+def need_unique_task_popup():
+
+    layout = [[sg.Text('That task name already exists. The task name must be unique.')],
+              [sg.OK()]]
+
+    window = sg.Window('Task name already exists', layout)
+
+    event, values = window.read(close=True)
+
+def cant_update_current_task_popup():
+
+    layout = [[sg.Text('You are currently clocked into this task.\nPlease clock out before making changes.')],
+              [sg.OK()]]
+
+    window = sg.Window('Task name already exists', layout)
+
+    event, values = window.read(close=True)
 
 def get_long_text(default_long_text):
     sg.theme('Dark Blue')
 
     layout = [[sg.Text('Enter long text below.')],
-              [sg.Multiline(default_text=default_long_text)],
+              [sg.Multiline(default_text=default_long_text, key='-TEXT-')],
               [sg.OK()]]
 
     window = sg.Window('Long text', layout)
 
     event, values = window.read(close=True)
 
-    if event is None:
-        return default_long_text
-
-    return values[0]
+    return event, values
 
 
 def format_seconds(time_in_seconds):
@@ -65,6 +81,12 @@ def format_seconds(time_in_seconds):
     minutes, seconds = divmod(remainder, 60)
 
     return f'{hours:02}:{minutes:02}:{seconds:02}'
+
+
+
+def settings():
+
+    return None
 
 
 

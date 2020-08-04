@@ -1,215 +1,337 @@
 # TODO: Change config file to .ini
-# TODO: Read the TimeEntries table and display recent entries (in a new tab?)
+# TODO: Fix newline bug in long text
 
 import PySimpleGUI as sg
-import db
+from TimeHandler import TimeHandler, AlreadyClockedOutError, LongTextNotUpdatedError, TaskDoesNotExistError
+from db import DB
+import config
 import datetime
 import utils
+import os
+from sqlite3 import IntegrityError
+
+def mainGUI(settings, t_e):
+
+    theme = sg.theme('Dark Blue')
+
+    t_e.db.open()
+    tasks = t_e.db.get_tasks()
+    task_list = sorted(tasks.keys(), key=str.lower)
+    table_entries = format_entries(t_e.db.get_entries())
+    table_tasks = format_tasks(t_e.db.get_tasks())
+
+    menu_layout = [['File', ['Output to CSV','Settings','Tasks','Exit']],
+                        ['Help', ['Documentation']]]
+
+# -------------------------  Tab 1 layout  ------------------------- #
+
+    top_frame_layout = [[sg.Text('Currently clocked in to:'),
+                            sg.Text(size=(15, 1), key='-CLOCKED_IN_TO-', background_color='black', text_color='white', enable_events=True),
+                            sg.Text('for'), sg.Text('00:00:00',size=(10, 1), key='-TIME_CLOCKED_IN-')],
+                            [sg.Button('Clock out of current task', size=(35,3)), sg.Button('Edit long text for current task', size=(35,3))],]
+
+    bottom_frame_layout = [[sg.Text('Task'),
+                                sg.InputOptionMenu(task_list, key='-TASKS-', default_value=task_list[0])],
+                               [sg.Button('Clock in', size=(72,4))], ]
+
+    tab_one_layout = [[sg.Frame('',top_frame_layout)],[sg.Frame('',bottom_frame_layout)]]
+
+# -------------------------  Tab 2 layout  ------------------------- #
+
+    headings_1 = ['Date','Start','End','Elapsed', 'Task','Description']
+
+    editor_top = [[sg.Table(values=table_entries,
+                headings=headings_1,
+                auto_size_columns=False,
+                col_widths=[8, 7, 7, 7, 12, 22],
+                justification='left',
+                num_rows=9,
+                key='-TABLE_1-')]]
+    
+    editor_bottom = [[sg.Button('Update/View Entry', size=(23,1)), sg.Button('Delete Entry', size=(22,1)), sg.Button('Add Entry', size=(23,1))]]
+
+    tab_two_layout = [[sg.Frame('', editor_top)], [sg.Frame('', editor_bottom)]]
+
+# -------------------------  Tab 3 layout  ------------------------- #
+
+    headings_2 = ['Title', 'Description', 'Default Text']
+
+    task_top = [[sg.Table(values=table_tasks,
+                headings=headings_2,
+                auto_size_columns=False,
+                col_widths=[13, 32, 18],
+                justification='left',
+                num_rows=9,
+                key='-TABLE_2-')]]
+
+    task_bottom = [[sg.Button('Update/View Task', size=(35,1)), sg.Button('Add Task', size=(35,1))]]
+
+    tab_three_layout = [[sg.Frame('', task_top)], [sg.Frame('', task_bottom)]]
+
+    
+    
+    
+    
+    
+    layout = [[sg.Menu(menu_layout),
+                sg.TabGroup([[sg.Tab('Clock In/Clock Out', tab_one_layout)],
+                             [sg.Tab('Editor', tab_two_layout)],
+                             [sg.Tab('Tasks', tab_three_layout)] ])]]
+    
+    window = sg.Window('Simple Time Entry', layout)
 
 
-class MainGUI:
-
-    def __init__(self, db):
-
-        # This instance of TimeEntries is just to read the database for the task list and later to read the most recent
-        # time entries most likely
-        self.t_e = TimeEntries(db)
-
-        theme = sg.theme('Dark Blue')
-
-        # The menu layout will be global to both tabs
-
-        self.menu_layout = [['File', ['Settings','Output to CSV','Exit']],
-                            ['Help', ['Documentation']]]
-
-        self.top_frame_layout = [[sg.Text('Currently clocked in to:'),
-                                sg.Text(size=(15, 1), key='-CLOCKED_IN_TO-', background_color='black', text_color='white', enable_events=True),
-                                sg.Text('for'), sg.Text('00:00:00',size=(10, 1), key='-TIME_CLOCKED_IN-')],
-                                [sg.Button('Clock out of current task', size=(35,4)), sg.Button('Edit long text for current task', size=(35,4))],]
-
-        self.bottom_frame_layout = [[sg.Text('Task'),
-                                    sg.InputOptionMenu(self.t_e.task_list, key='-TASKS-', default_value=self.t_e.task_list[0])],
-                                   [sg.Button('Clock in', size=(72,5), pad=(5,30))], ]
-
-
-        # The editor layout will have to be populated with all of the contents from the timeentries database...
-        #[[row1],[row2]]
+    while True:
+        event, values = window.read(timeout=1000)
         
-##        self.editor_top = [[sg.Text('Date'), sg.Text('Start Time'), sg.Text('End Time'), sg.Text('Elapsed Time'), sg.Text('This is a lot of descriptive text I do not think it will fit on the screen', size=(18,1))],
-##                           [sg.Text('Date'), sg.Text('Start Time'), sg.Text('End Time'), sg.Text('Elapsed Time'), sg.Text('This is a lot of descriptive text I do not think it will fit on the screen', size=(1,1))],
-##                           [sg.Text('Date'), sg.Text('Start Time'), sg.Text('End Time'), sg.Text('Elapsed Time'), sg.Text('This is a lot of descriptive text I do not think it will fit on the screen', size=(1,1))],
-##                           [sg.Text('Date'), sg.Text('Start Time'), sg.Text('End Time'), sg.Text('Elapsed Time'), sg.Text('This is a lot of descriptive text I do not think it will fit on the screen', size=(1,1))],
-##                           [sg.Text('Date'), sg.Text('Start Time'), sg.Text('End Time'), sg.Text('Elapsed Time'), sg.Text('This is a lot of descriptive text I do not think it will fit on the screen', size=(1,1))],
-##                           [sg.Text('Date'), sg.Text('Start Time'), sg.Text('End Time'), sg.Text('Elapsed Time'), sg.Text('This is a lot of descriptive text I do not think it will fit on the screen', size=(1,1))],
-##                           [sg.Text('Date'), sg.Text('Start Time'), sg.Text('End Time'), sg.Text('Elapsed Time'), sg.Text('This is a lot of descriptive text I do not think it will fit on the screen', size=(1,1))],
-##                           [sg.Text('Date'), sg.Text('Start Time'), sg.Text('End Time'), sg.Text('Elapsed Time'), sg.Text('This is a lot of descriptive text I do not think it will fit on the screen', size=(1,1))],
-##                           [sg.Text('Date'), sg.Text('Start Time'), sg.Text('End Time'), sg.Text('Elapsed Time'), sg.Text('This is a lot of descriptive text I do not think it will fit on the screen', size=(1,1))],
-##                           [sg.Text('Date'), sg.Text('Start Time'), sg.Text('End Time'), sg.Text('Elapsed Time'), sg.Text('This is a lot of descriptive text I do not think it will fit on the screen', size=(1,1))],
-##                           [sg.Text('Date'), sg.Text('Start Time'), sg.Text('End Time'), sg.Text('Elapsed Time'), sg.Text('This is a lot of descriptive text I do not think it will fit on the screen', size=(1,1))],
-##                           [sg.Text('Date'), sg.Text('Start Time'), sg.Text('End Time'), sg.Text('Elapsed Time'), sg.Text('This is a lot of descriptive text I do not think it will fit on the screen', size=(1,1))],
-##                           [sg.Text('Date'), sg.Text('Start Time'), sg.Text('End Time'), sg.Text('Elapsed Time'), sg.Text('This is a lot of descriptive text I do not think it will fit on the screen', size=(1,1))],
-##                           [sg.Text('Date'), sg.Text('Start Time'), sg.Text('End Time'), sg.Text('Elapsed Time'), sg.Text('This is a lot of descriptive text I do not think it will fit on the screen', size=(1,1))]]
+        if t_e.clocked_in:
+            t_e.calculate_time_clocked_in()
+            time_formatted = utils.format_seconds(t_e.calculate_time_clocked_in())
+            window['-TIME_CLOCKED_IN-'].update(time_formatted)
 
-        now = datetime.datetime.now()
-        now_date = now.strftime('%d-%m-%Y')
-        now_time = now.strftime('%H:%M:%S')
+        if event in (None, 'Exit'):
+            if t_e.clocked_in:
+                try:
+                    t_e.clock_out()
+                    
+                except LongTextNotUpdatedError:
+                    _event, _values = utils.get_long_text(t_e.long_text)
+                    if _event == 'OK':
+                        t_e.update_long_text(_values['-TEXT-'])
+                        t_e.clock_out()
+                    else:
+                        continue
 
-        date_col = [[sg.Text('Date')], [sg.Text(now_date)],[sg.Text(now_date)],[sg.Text(now_date)],[sg.Text(now_date)],[sg.Text(now_date)],[sg.Text(now_date)],[sg.Text(now_date)],[sg.Text(now_date)],[sg.Text(now_date)],[sg.Text(now_date)], ]
-        
-        start_time_col = [[sg.Text('Start')], [sg.Text(now_time)],[sg.Text(now_time)],[sg.Text(now_time)],[sg.Text(now_time)],[sg.Text(now_time)],[sg.Text(now_time)],[sg.Text(now_time)],[sg.Text(now_time)],[sg.Text(now_time)],[sg.Text(now_time)],]
-        
-        end_time_col = [[sg.Text('End')], [sg.Text(now_time)], [sg.Text(now_time)], [sg.Text(now_time)], [sg.Text(now_time)], [sg.Text(now_time)], [sg.Text(now_time)], [sg.Text(now_time)], [sg.Text(now_time)], [sg.Text(now_time)], [sg.Text(now_time)]]
-        
-        elapsed_time_col = [[sg.Text('Elapsed')], [sg.Text('10.005')],[sg.Text('10.005')],[sg.Text('10.005')],[sg.Text('10.005')],[sg.Text('10.005')],[sg.Text('10.005')],[sg.Text('10.005')],[sg.Text('10.005')],[sg.Text('10.005')],[sg.Text('10.005')]]
-        
-        desc_text_col = [[sg.Text('Descriptive Text')], [sg.Text('This is some very, very, very long long text that you can not possibly all print.')],[sg.Text('This is some very, very, very long long text that you can not possibly all print.')],[sg.Text('This is some very, very, very long long text that you can not possibly all print.')],[sg.Text('This is some very, very, very long long text that you can not possibly all print.')],[sg.Text('This is some very, very, very long long text that you can not possibly all print.')],[sg.Text('This is some very, very, very long long text that you can not possibly all print.')],[sg.Text('This is some very, very, very long long text that you can not possibly all print.')],[sg.Text('This is some very, very, very long long text that you can not possibly all print.')], ]
+            db.close()
+            break
 
-        edit_col = [[sg.Button('Edit/View')] for num in range(10)]
-        
-        self.editor_top = [[sg.Column(date_col), sg.Column(start_time_col), sg.Column(end_time_col), sg.Column(elapsed_time_col), sg.Column(desc_text_col, size=(200,200)), sg.Column(edit_col)]]
-        self.editor_bottom = [[sg.Button('Previous Entries', size=(35,1)), sg.Button('Next Entries', size=(35,1))]]
-        
-        self.tab_one_layout = [[sg.Frame('',self.top_frame_layout, pad=(5,10))],[sg.Frame('',self.bottom_frame_layout, pad=(5,10))]]
-        self.tab_two_layout = [[sg.Frame('', self.editor_top)], [sg.Frame('', self.editor_bottom)]]
-        
-        self.layout = [[sg.Menu(self.menu_layout), sg.TabGroup([[sg.Tab('Clock In/Clock Out', self.tab_one_layout)], [sg.Tab('Editor', self.tab_two_layout)]])]]
-        self.window = sg.Window('Simple Time Entry', self.layout)
+        if event == 'Clock in':
 
-    def run(self):
+            window['-TIME_CLOCKED_IN-'].update('00:00:00')
+            window['-CLOCKED_IN_TO-'].update('')
 
-        while True:
-            event, values = self.window.read(timeout=1000)
-            print(event)
-            print(values)
-            if self.t_e.clocked_in:
-                self.t_e.calculate_time_clocked_in()
-                time_formatted = utils.format_seconds(self.t_e.current_clock_in_time)
-                self.window['-TIME_CLOCKED_IN-'].update(time_formatted)
-                #print(f"Clocked in to {self.t_e.current_task} for {self.t_e.current_clock_in_time} seconds")
+            if t_e.clocked_in:
 
-            if event in (None, 'Exit'):
-                if self.t_e.clocked_in:
-                    self.t_e.clock_out()
-                break
+                try:
+                    t_e.clock_out()
+                    table_entries = format_entries(t_e.db.get_entries())
+                    window['-TABLE_1-'].update(table_entries)
+                    
+                except LongTextNotUpdatedError:
+                    _event, _values = utils.get_long_text(t_e.long_text)
+                    if _event == 'OK':
+                        t_e.update_long_text(_values['-TEXT-'])
+                        t_e.clock_out()
+                        table_entries = format_entries(t_e.db.get_entries())
+                        window['-TABLE_1-'].update(table_entries)
+                    else:
+                        continue
+                    
 
-            if event == 'Clock in':
+            t_e.clock_in(values['-TASKS-'], tasks[values['-TASKS-']]['prep_text'])
+            window['-CLOCKED_IN_TO-'].update(t_e.current_task)
 
-                self.reset_window()
+        if event == 'Clock out of current task':
+            window['-TIME_CLOCKED_IN-'].update('00:00:00')
+            window['-CLOCKED_IN_TO-'].update('')
 
-                if self.t_e.clocked_in:
-                    self.t_e.clock_out()
+            try:
+                t_e.clock_out()
 
-                # This is the first effective time entry
-                self.t_e = TimeEntries(db)
-                self.t_e.clock_in(values['-TASKS-'])
-                self.window['-CLOCKED_IN_TO-'].update(self.t_e.current_task)
+            except AlreadyClockedOutError:
+                utils.already_clocked_out_popup()
 
+            except LongTextNotUpdatedError:
+                _event, _values = utils.get_long_text(t_e.long_text)
+                if _event == 'OK':
+                    t_e.update_long_text(_values['-TEXT-'])
+                    t_e.clock_out()
 
-            if event == 'Clock out of current task':
-                # clock out and reset the class!
-                self.reset_window()
-                self.t_e.clock_out()
+            table_entries = format_entries(t_e.db.get_entries())
+            window['-TABLE_1-'].update(table_entries)
+            
+        if event == 'Edit long text for current task':
+
+            if t_e.clocked_in:
+                _event, _values = utils.get_long_text(t_e.long_text)
+                t_e.update_long_text(_values['-TEXT-'])
                 
-
-                # reset the class by creating a new instance
-                self.t_e = TimeEntries(db)
+            else:
+                utils.already_clocked_out_popup()
 
                 
-            if event == 'Edit long text for current task':
+        if event == 'Update/View Entry' and values['-TABLE_1-'] and table_entries:               
+            
+            # ind contains the row number in the table
+            ind = values['-TABLE_1-'][0]
+            row = table_entries[ind]
 
-                if self.t_e.clocked_in:
-                    self.t_e.long_text = utils.get_long_text(self.t_e.long_text)
-                    self.t_e.long_text_updated = True
-                else:
-                    utils.already_clocked_out_popup()
+            _event, _values = entry_details(task_list, package=row)
+            
+            if _event == 'Submit':
 
+                t_e.db.update_entries([(_values['-DATE-'],
+                                        _values['-S_TIME-'],
+                                        _values['-E_TIME-'],
+                                        _values['-ELAPSE-'],
+                                        _values['-TASK-'],
+                                        _values['-DTEXT-'],
+                                        row[-1])])
+                
+                table_entries = format_entries(t_e.db.get_entries())
+                window['-TABLE_1-'].update(table_entries)
+
+
+        if event == 'Add Entry':
+
+            _event, _values = entry_details(task_list)
+            
+            if _event == 'Submit':
+
+                t_e.db.insert_time_entries([(_values['-DATE-'],
+                                             _values['-S_TIME-'],
+                                             _values['-E_TIME-'],
+                                             _values['-ELAPSE-'],
+                                             _values['-TASK-'],
+                                             _values['-DTEXT-'])])
+
+                table_entries = format_entries(t_e.db.get_entries())
+                window['-TABLE_1-'].update(table_entries)
+
+        if event == 'Delete Entry' and values['-TABLE_1-'] and table_entries:
+
+            ind = values['-TABLE_1-'][0]
+            entry_id = table_entries[ind][-1]
+            t_e.db.delete_entry(entry_id)
+            table_entries = format_entries(t_e.db.get_entries())
+            window['-TABLE_1-'].update(table_entries)
+
+
+        if event == 'Update/View Task' and values['-TABLE_2-']:
+            
+            ind = values['-TABLE_2-'][0]
+            row = table_tasks[ind]
+
+            # Prevent user from updating current task
+            if row[0] == t_e.current_task:
+                utils.cant_update_current_task_popup()
+                continue
+            _event, _values = task_details(package=row)
+
+            if _event == 'Submit':
+
+                try:
+                    t_e.db.update_tasks([(_values['-TITLE-'],
+                                          _values['-DESC-'],
+                                          _values['-PTEXT-'],
+                                          row[0])])
+
+                except IntegrityError:
+                    utils.need_unique_task_popup()
+
+                tasks = t_e.db.get_tasks()
+                task_list = sorted(tasks.keys(), key=str.lower)
+                table_entries = format_entries(t_e.db.get_entries())
+                table_tasks = format_tasks(tasks)
+                window['-TABLE_2-'].update(table_tasks)
+                window['-TABLE_1-'].update(table_entries)
+                window['-TASKS-'].update(values=task_list)
+
+        if event == "Add Task":
+
+            _event, _values = task_details()
+
+            if _event == 'Submit':
+
+                try:
+                    t_e.db.insert_tasks([(_values['-TITLE-'],
+                                          _values['-DESC-'],
+                                          _values['-PTEXT-'])])
+
+                except IntegrityError:
+                    utils.need_unique_task_popup()
+
+                tasks = t_e.db.get_tasks()
+                task_list = sorted(tasks.keys(), key=str.lower)
+                table_entries = format_entries(t_e.db.get_entries())
+                table_tasks = format_tasks(tasks)
+                window['-TABLE_2-'].update(table_tasks)
+                window['-TABLE_1-'].update(table_entries)
+                window['-TASKS-'].update(values=task_list)
+                
             
 
-        self.window.close()
-
-    def reset_window(self):
-        self.window['-TIME_CLOCKED_IN-'].update('00:00:00')
-        self.window['-CLOCKED_IN_TO-'].update('')
+    window.close()
 
 
-        
+def format_entries(nested_dict):
+    """Format time entries for table on tab two"""
+    return [[val['date'], val['start_time'],
+             val['end_time'], val['elapsed_time'],
+             val['task'], val['long_text'], key]
+            for key, val in nested_dict.items()]
 
+def format_tasks(nested_dict):
+    """Format tasks for table on tab three"""
+    return [[key, val['desc'], val['prep_text']]
+            for key, val in nested_dict.items()]
 
-class TimeEntries:
+def entry_details(task_list, package=['','','','','','']):
     """
-    The TimeEntries class contains all database connections and methods relating to the backend of the application.
+    This method provides a singular place to contain the entry details layout
+    since it is used both to update entries as well as add new entries.
+    """
+    layout = [[sg.Text('Task', size=(15,1)), sg.InputOptionMenu(task_list, key='-TASK-', default_value=package[4])],
+              [sg.Text('Date', size=(15,1)), sg.InputText(default_text=package[0], key='-DATE-')],
+              [sg.Text('Start Time', size=(15,1)), sg.InputText(default_text=package[1], key='-S_TIME-')],
+              [sg.Text('End Time', size=(15,1)), sg.InputText(default_text=package[2], key='-E_TIME-')],
+              [sg.Text('Elapsed Time', size=(15,1)), sg.InputText(default_text=package[3], key='-ELAPSE-')],
+              [sg.Text('Description', size=(15,1)), sg.Multiline(default_text=package[5], key='-DTEXT-')],
+              [sg.Button('Submit'), sg.Button('Cancel')]]
+
+    window = sg.Window('Details View', layout)
+
+    event, values = window.read(close=True)
+
+    return event, values
+
+
+def task_details(package=['','','']):
+    """
+    This method provides a singular place to contain the task details layout
+    since it is used both to update tasks as well as add new tasks.
     """
 
-    def __init__(self, database):
+    layout = [[sg.Text('Task Title', size=(15,1)), sg.InputText(default_text=package[0], key='-TITLE-', )],
+              [sg.Text('Description', size=(15,1)), sg.Multiline(default_text=package[1], key='-DESC-')],
+              [sg.Text('Default Text', size=(15,1)), sg.InputText(default_text=package[2], key='-PTEXT-')],
+              [sg.Button('Submit'), sg.Button('Cancel')]]
 
-        self.database = database
+    window = sg.Window('Details View', layout)
 
-        self.database.open()
-        self.task_list = self.database.read_task_titles()
-        self.task_descriptions = self.database.read_task_descriptions()
-        self.long_text_prepend = self.database.read_task_desc_text()
+    event, values = window.read(close=True)
 
-        self.clocked_in = False
-        self.start_time = None
-        self.end_time = None
-        self.current_clock_in_time = None
-        self.current_task = None
-        self.long_text_updated = False
-        self.long_text = '' # Needs to be populated from the tasks table
+    return event, values
 
-    def clock_in(self, task):
 
-        if self.clocked_in:
-            self.clock_out()
 
-        else:
-            self.current_task = task
-            self.long_text = self.long_text_prepend[self.task_list.index(self.current_task)]
-            self.clocked_in = True
-            self.start_time = datetime.datetime.now()
-
-    def clock_out(self):
-
-        """ Clock out of current task. """
-
-        if self.clocked_in:
-            self.end_time = datetime.datetime.now()
-            self.db_insert()
-
-        else:
-            utils.already_clocked_out_popup()
-
-    def calculate_time_clocked_in(self):
-        """ Populate current_clock_in_time with time elapsed in seconds. """
-
-        time_diff = datetime.datetime.now() - self.start_time
-        #self.current_clock_in_time = round(float(time_diff.seconds) / 3600, 3)
-        self.current_clock_in_time = time_diff.seconds
-
-        
-    def db_insert(self):
-
-        if not self.long_text_updated:
-            self.long_text = utils.get_long_text(self.long_text)
-
-        # [task_id, start_date, start_time, end_date, end_time, elapsed_time, long_text]
-
-        start_date = self.start_time.strftime('%d-%m-%Y')
-        start_time = self.start_time.strftime('%H:%M:%S')
-        end_date = self.end_time.strftime('%d-%m-%Y')
-        end_time = self.end_time.strftime('%H:%M:%S')
-        elapsed_time = round( float(self.current_clock_in_time) / 3600, 3)
-
-        package = [(self.task_list.index(self.current_task) + 1, start_date, start_time,
-                    end_date, end_time, elapsed_time, self.long_text)]
-
-        for item in package:
-            print(f"{item}: {type(item)}")
-
-        self.database.insert_time_entries(package)
-        self.database.close()
 
 if __name__ == "__main__":
-    db = db.DB()
-    GUI = MainGUI(db)
-    GUI.run()
+
+    # If the config file exists...
+
+    db_path = config.db_info['filename'] 
+    if not os.path.exists(db_path):
+        event, values = utils.find_file()
+        if event.lower() == 'ok' and values[0].endswith('db'):
+            db_path = values[0]
+        elif event.lower() == 'create new database':
+            db_path = 'TimeEntry.db'
+        else:
+            utils.db_error_popup()
+            exit()
+
+    db = DB(db_path)
+    timehandler = TimeHandler(db)
+    settings = None
+    mainGUI(settings, timehandler)

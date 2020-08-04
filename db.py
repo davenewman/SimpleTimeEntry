@@ -1,166 +1,188 @@
-# TODO: Write remove method
-# TODO: Write update method
-
-# make sure to handle the case in which there are no entries to the table
-# can the entries be editable?
-
-'''
-Extending the tasks table dynamically should not be too much of a problem. The join statement when displaying the time entries
-is a little bit weird, but any extensions should always come in a known position (after the default ones). The layout will have
-to be dynamic based on the number of fields though.
-'''
-
-
 import sqlite3
-import config
 import utils
 import os
 
 
 class DB:
 
-    def __init__(self, db_path=config.db_info['filename']):
+    def __init__(self, db_path):
 
         self.conn = None
         self.curs = None
+        self.db_path = db_path
 
-        if os.path.exists(db_path):
-            self.db_path = db_path
-
-        else:
-            event, values = utils.find_file()
-            if event.lower() == 'ok' and values[0].endswith('db'):
-                self.db_path = values[0]
-            elif event.lower() == 'create new database':
-                self.db_path = db_path
-                self._create_db()
-            else:
-                utils.db_error_popup()
-                exit()
+        if not os.path.exists(db_path): # Also verify that the tables exists.
+            self._create_db()
+            
 
     def open(self):
 
-        try:
-            self.conn = sqlite3.connect(self.db_path)
-            self.curs = self.conn.cursor()
+ 
+        self.conn = sqlite3.connect(self.db_path)
+        self.curs = self.conn.cursor()
+        self.curs.execute('''PRAGMA foreign_keys = 1''')
 
-        except sqlite3.Error as e:
-            print(e)
 
     def close(self):
 
-        self.conn.commit()
-        self.conn.close()
+        if self.conn:
+            self.conn.commit()
+            self.conn.close()
         self.conn = None
         self.curs = None
 
-    def read_task_titles(self):
+    def get_tasks(self):
 
-        #It may be a poor decision to fetch ALL of the tasks, descriptions, and long text from the db?
+        """
+        Returns entire tasks table in the form of a dictionary of dictionaries
+        with each key being the task name
+        """
 
-        self.curs.execute('''SELECT task_title from Tasks''')
-        return [item[0] for item in self.curs.fetchall()]
+        self.curs.execute('''SELECT * from tasks''')
 
-    def read_task_descriptions(self):
-
-        self.curs.execute('''SELECT task_description from Tasks''')
-        return [item[0] for item in self.curs.fetchall()]
-
-    def read_task_desc_text(self):
-
-        self.curs.execute('''SELECT task_desc_text from Tasks''')
-        return [item[0] for item in self.curs.fetchall()]
+        query_dict = dict()
+        for row in self.curs.fetchall():
+            query_dict[row[0]] = {'desc': row[1], 'prep_text': row[2]}
+        
+        return query_dict
 
     def insert_time_entries(self, entries):
 
-        self.curs.executemany('''INSERT INTO TimeEntries (task_id,
-                                                          start_date,
+        self.curs.executemany('''INSERT INTO TimeEntries (date,
                                                           start_time,
-                                                          end_date,
                                                           end_time,
                                                           elapsed_time,
+                                                          task,
                                                           long_text) 
-                                    VALUES (?, ?, ?, ?, ?, ?, ?)''', entries)
+                                    VALUES (?, ?, ?, ?, ?, ?)''', entries)
         self.conn.commit()
-        print("DB updated")
+
+    def insert_tasks(self, package):
+
+        self.curs.executemany('''INSERT INTO tasks (title,
+                                                        desc,
+                                                        prep_text)
+                                        VALUES (?, ?, ?)''', package)
+        self.conn.commit()
 
 
-    def get_latest_entries(self, num_results):
+    def get_entries(self):
         '''
-        We need to get everything from the two tables so that a user can edit
-        the data on the second tab. If possible, we should not make this feature
-        unique to the GUI. We have to join the two tables and account for the fact
-        that the user may have added many different fields to the "projects/tasks"
-        table. Maybe we can return everything from the table using join and then
-        use Python to sanitize the data.
-
-        Ideally we want to display something like this:
-
-        Project/task title | Type (Meeting, absorbed, 9/80 etc.) | Start date/time | Enddate/time | Elapsed time | 
+        Returns entire timeentries table in the form of a dictionary of dictionaries
+        with each key being the id number.
         '''
-        #self.curs.execute('''SELECT * from timeentries inner join tasks on timeentries.task_id = tasks.id''')
-        #self.curs.execute('''SELECT * from timeentries inner join tasks''')
+
+        self.curs.execute('''SELECT * from timeentries''')
+
+        query_dict = dict()
+        for row in self.curs.fetchall():
+            query_dict[row[0]] = {'date': row[1], 'start_time': row[2],
+                                  'end_time': row[3], 'elapsed_time': row[4],
+                                  'task': row[5], 'long_text': row[6]}
+
+        return query_dict
+
+
+    def update_entries(self, package):
+
+        """
+
+        Update an entry in the timeentries table
+        
+        """
+
+        self.curs.executemany('''UPDATE timeentries
+                                SET date = ?,
+                                    start_time = ?,
+                                    end_time = ?,
+                                    elapsed_time = ?,
+                                    task = ?,
+                                    long_text = ?
+                                WHERE id = ?''', package)
+
+        self.conn.commit()
+
+
+
+                                                    #title, desc, prep_text
+
+    def update_tasks(self, package):
+        """
+        Update an entry in the tasks table
+        """
+
+        self.curs.executemany('''UPDATE tasks
+                                SET title = ?,
+                                    desc = ?,
+                                    prep_text = ?
+                                WHERE title = ?''', package)
+
+
+        self.conn.commit()
+
+
+
+    def delete_entry(self, entry_id):
+        """
+
+        Delete an entry in the timeentries table
+    
+        """
+
+        self.curs.execute('''DELETE FROM timeentries WHERE id=?''', (entry_id,))
+
+        self.conn.commit()
+
+        
 
 
     def _create_db(self):
 
-        # Adding rows to the main DB 09-05-2020
-
         self.open()
 
-        try:
-            self.curs.execute('''CREATE TABLE TimeEntries (
-                                    id integer PRIMARY KEY,
-                                    task_id integer NOT NULL,
-                                    start_date text,
-                                    start_time text,
-                                    end_date text,
-                                    end_time text,
-                                    elapsed_time real,
-                                    long_text text,
-                                    FOREIGN KEY (task_ID) REFERENCES Tasks (id))''')
-        except sqlite3.Error as e:
-            print(e)
-            self.close()
+        self.curs.execute('''CREATE TABLE TimeEntries (
+                            id INTEGER PRIMARY KEY,
+                            date TEXT,
+                            start_time TEXT,
+                            end_time TEXT,
+                            elapsed_time REAL,
+                            task TEXT,
+                            long_text TEXT,
+                            FOREIGN KEY (task) REFERENCES Tasks (title)
+                            ON UPDATE CASCADE ON DELETE CASCADE)''')
 
-        try:
-            self.curs.execute('''CREATE TABLE Tasks (
-                                    id integer PRIMARY KEY,
-                                    task_title text NOT NULL,
-                                    task_description text NOT NULL,
-                                    task_desc_text text)''')
-        except sqlite3.Error as e:
-            print(e)
-            self.close()
+        self.curs.execute('''CREATE TABLE Tasks (
+                                    title TEXT PRIMARY KEY,
+                                    desc TEXT,
+                                    prep_text TEXT)''')
 
-        try:
-            self.curs.executemany('''INSERT INTO Tasks (task_title, task_description, task_desc_text) VALUES (?, ?, ?)''',
-                                  config.db_info['tasks'])
+        # Insert a single default task into the tasks table
 
-        except sqlite3.Error as e:
-            print(e)
-            self.close()
+        self.insert_tasks([('Uncategorized', 'Uncategorized tasks', 'Uncategorized - ')])
 
         self.conn.commit()
 
+        self.close()
+
+
 
 if __name__ == "__main__":
+
     import random
     import datetime
 
+    if os.path.exists('test.db'):
+        os.remove('test.db')
+    
+    database = DB('test.db')
 
-    def put_entry_in_table():
-        db_obj = DB()
-        db_obj.open()
-        task_ids = [1, 2, 3, 4, 5]
-        now = datetime.datetime.now()
-        later = datetime.datetime.now() + datetime.timedelta(hours=10 * random.random())
-        words = ['lorem', 'ipsum', 'words', 'dolor', 'sit', 'amet']
-        mydata = [(random.choice(task_ids), now.strftime('%d-%m-%Y %H:%M:%S'),
-                   later.strftime('%d-%m-%Y %H:%M:%S'), (later - now).seconds / 3600, random.choice(words))]
-        db_obj.insert_time_entries(mydata)
-        db_obj.close()
+    def random_data():
 
+        date = f"{random.randint(1,30):02}/{random.randint(1,12):02}/2020"
+        time = f"{random.randint(0, 24):02}:{random.randint(0, 60):02}:{random.randint(0, 60):02}"
+        elapsed_time = f"{10 * random.random():.3f}"
+        task = random.choice(['Uncategorized', 'Overhead', 'Billed'])
+        package = []
 
-    for num in range(100):
-        put_entry_in_table()
+        return date, time, elapsed_time, task
+    
